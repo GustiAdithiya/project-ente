@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'auth_service.dart'; // Pastikan untuk membuat dan mengimpor auth_service.dart
+// import 'auth_service.dart'; // Pastikan untuk membuat dan mengimpor auth_service.dart
 import 'login.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -43,8 +43,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     final password = passwordController.text;
 
     try {
-      final result = await AuthService().register(name, email, password); // Kirim nama ke AuthService
-      print('Registration successful: ${result['token']}');
+      // final result = await AuthService().register(name, email, password); // Kirim nama ke AuthService
+      // print('Registration successful: ${result['token']}');
       // Save token and navigate to login screen or dashboard
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {

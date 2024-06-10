@@ -16,7 +16,8 @@ class ProfilePage extends StatelessWidget {
             children: <Widget>[
               CircleAvatar(
                 radius: 50,
-                backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                backgroundImage: NetworkImage(
+                    'https://storyblok-cdn.photoroom.com/f/191576/1000x1000/38dc8dba9a/light_blue_background.webp/m/filters:quality(75)'),
               ),
               SizedBox(height: 20),
               Text(
