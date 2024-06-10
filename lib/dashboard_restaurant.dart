@@ -25,14 +25,16 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
   void initState() {
     futureRestaurants = RestaurantService().fetchRestaurants();
     _pageController = PageController(initialPage: 0);
-    _timer = Timer.periodic(const Duration(seconds: 5), (Timer timer) {
-      if (_pageController.page == 2) {
-        _pageController.animateToPage(0,
-            duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
-      } else {
-        _pageController.nextPage(
-            duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _timer = Timer.periodic(const Duration(seconds: 10), (Timer timer) {
+        if (_pageController.page == 2) {
+          _pageController.animateToPage(0,
+              duration: const Duration(seconds: 10), curve: Curves.easeIn);
+        } else {
+          _pageController.nextPage(
+              duration: const Duration(seconds: 10), curve: Curves.easeIn);
+        }
+      });
     });
     super.initState();
   }
@@ -86,8 +88,8 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
     );
   }
 
-  Column _buildHomePage() {
-    return Column(
+  ListView _buildHomePage() {
+    return ListView(
       children: [
         SizedBox(
           height: 200,
@@ -95,14 +97,17 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
             controller: _pageController,
             children: [
               Image.network(
-                  'https://t3.ftcdn.net/jpg/03/24/73/92/360_F_324739203_keeq8udvv0P2h1MLYJ0GLSlTBagoXS48.jpg',
-                  fit: BoxFit.cover),
+                'https://t3.ftcdn.net/jpg/03/24/73/92/360_F_324739203_keeq8udvv0P2h1MLYJ0GLSlTBagoXS48.jpg',
+                fit: BoxFit.cover,
+              ),
               Image.network(
-                  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTLYVZ9gomEgd5qrt-iA4-oJoNPzpn033360g&s',
-                  fit: BoxFit.cover),
+                'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTLYVZ9gomEgd5qrt-iA4-oJoNPzpn033360g&s',
+                fit: BoxFit.cover,
+              ),
               Image.network(
-                  'https://img.freepik.com/free-photo/restaurant-interior_1127-3394.jpg',
-                  fit: BoxFit.cover),
+                'https://img.freepik.com/free-photo/restaurant-interior_1127-3394.jpg',
+                fit: BoxFit.cover,
+              ),
             ],
           ),
         ),
@@ -112,13 +117,14 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               IconButton(
-                  onPressed: () {
-                    setState(() {
-                      selectedLocation = null;
-                      selectedType = null;
-                    });
-                  },
-                  icon: const Icon(Icons.refresh)),
+                onPressed: () {
+                  setState(() {
+                    selectedLocation = null;
+                    selectedType = null;
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+              ),
               Padding(
                 padding: const EdgeInsets.only(right: 8.0),
                 child: DropdownButton<String>(
@@ -162,139 +168,132 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
             ],
           ),
         ),
-        Expanded(
-          child: FutureBuilder<List<Restaurant>>(
-            future: futureRestaurants,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No restaurants found'));
-              } else {
-                final data = snapshot.data;
-                return ListView.builder(
-                  itemCount: data!
-                      .where((resto) =>
-                          selectedLocation == null ||
-                          resto.location == selectedLocation)
-                      .where((resto) =>
-                          selectedType == null || resto.type == selectedType)
-                      .length,
-                  itemBuilder: (BuildContext context, int index) {
-                    var displayList = data
-                        .where((resto) =>
-                            selectedLocation == null ||
-                            resto.location == selectedLocation)
-                        .where((resto) =>
-                            selectedType == null || resto.type == selectedType)
-                        .toList();
-                    final restaurant = displayList[index];
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => DetailPage(
-                              title: restaurant.name,
-                              image: restaurant.urlPhoto,
-                              location: restaurant.location,
-                              type: restaurant.type,
+        FutureBuilder<List<Restaurant>>(
+          future: futureRestaurants,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No restaurants found'));
+            } else {
+              final data = snapshot.data!;
+              final filteredData = data
+                  .where((resto) =>
+                      selectedLocation == null ||
+                      resto.location == selectedLocation)
+                  .where((resto) =>
+                      selectedType == null || resto.type == selectedType)
+                  .toList();
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredData.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final restaurant = filteredData[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DetailPage(
+                            title: restaurant.name,
+                            image: restaurant.urlPhoto,
+                            location: restaurant.location,
+                            type: restaurant.type,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Card(
+                      margin: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 200,
+                            child: Image.network(
+                              restaurant.urlPhoto,
+                              fit: BoxFit.cover,
                             ),
                           ),
-                        );
-                      },
-                      child: Card(
-                        margin: const EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: double.infinity,
-                              height: 200,
-                              child: Image.network(
-                                restaurant.urlPhoto,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        restaurant.name,
-                                        style: const TextStyle(
-                                          fontSize: 18.0,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      restaurant.name,
+                                      style: const TextStyle(
+                                        fontSize: 18.0,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      Row(
+                                    ),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.location_on,
+                                            color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          restaurant.location,
+                                          style: const TextStyle(
+                                            fontSize: 16.0,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      restaurant.type,
+                                      style: const TextStyle(
+                                        fontSize: 16.0,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () {
+                                        // Handle bookmark action
+                                      },
+                                      child: const Row(
                                         children: [
-                                          const Icon(Icons.location_on,
+                                          Icon(Icons.bookmark,
                                               color: Colors.grey),
-                                          const SizedBox(width: 4),
+                                          SizedBox(width: 4),
                                           Text(
-                                            restaurant.location,
-                                            style: const TextStyle(
+                                            "Bookmark",
+                                            style: TextStyle(
                                               fontSize: 16.0,
                                               color: Colors.grey,
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        restaurant.type,
-                                        style: const TextStyle(
-                                          fontSize: 16.0,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: () {
-                                          // _onItemTapped(
-                                          //     1); // Navigate to Bookmark Page
-                                        },
-                                        child: const Row(
-                                          children: [
-                                            Icon(Icons.bookmark,
-                                                color: Colors.grey),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              "Bookmark",
-                                              style: TextStyle(
-                                                fontSize: 16.0,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                ],
-                              ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                );
-              }
-            },
-          ),
+                    ),
+                  );
+                },
+              );
+            }
+          },
         ),
       ],
     );
