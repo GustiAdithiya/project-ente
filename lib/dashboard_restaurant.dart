@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:ente/detail.dart';
+import 'package:ente/model/bookmark_model.dart';
 import 'package:ente/model/restaurant_model.dart';
 import 'package:ente/profile.dart';
+import 'package:ente/service/bookmark_service.dart';
 import 'package:ente/service/restaurant_service.dart';
 import 'package:flutter/material.dart';
 
@@ -14,7 +16,6 @@ class DashBoardRestaurant extends StatefulWidget {
 }
 
 class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
-  late Future<List<Restaurant>> futureRestaurants;
   String? selectedLocation;
   String? selectedType;
   late PageController _pageController;
@@ -23,7 +24,6 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
 
   @override
   void initState() {
-    futureRestaurants = RestaurantService().fetchRestaurants();
     _pageController = PageController(initialPage: 0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _timer = Timer.periodic(const Duration(seconds: 10), (Timer timer) {
@@ -56,8 +56,7 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
   Widget build(BuildContext context) {
     List<Widget> _pages = <Widget>[
       _buildHomePage(),
-      const Center(
-          child: const Text('Bookmarks Page')), // Dummy page for bookmarks
+      _buildBookmarkPage(),
       ProfilePage(), // Profile page
     ];
     return Scaffold(
@@ -85,6 +84,112 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
+    );
+  }
+
+  FutureBuilder<List<dynamic>> _buildBookmarkPage() {
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        RestaurantService().fetchRestaurants(),
+        BookmarkService().fetchBookmarks("4"),
+      ]),
+      builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Center(child: Text('No data available'));
+        } else {
+          List<dynamic> data = snapshot.data!;
+          List<Restaurant> restaurants = data[0];
+          List<Bookmark> bookmarks = data[1];
+
+          return ListView.builder(
+            itemCount: bookmarks.length,
+            itemBuilder: (context, index) {
+              Bookmark bookmark = bookmarks[index];
+              // Find the corresponding restaurant for the current bookmark
+              Restaurant? restaurant = restaurants.firstWhere(
+                (restaurant) =>
+                    restaurant.id == int.parse(bookmark.warungmakanId),
+              );
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Image.network(
+                          restaurant.urlPhoto,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text(
+                              restaurant.name,
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            Text(restaurant.type),
+                            SizedBox(height: 20),
+                            Row(
+                              mainAxisSize: MainAxisSize.max,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.location_on),
+                                    SizedBox(width: 10),
+                                    Text(restaurant.location),
+                                  ],
+                                ),
+                                Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      BookmarkService().deleteBookmark(
+                                          bookmark.id.toString());
+                                      setState(() {});
+                                    },
+                                    icon: Icon(Icons.remove, color: Colors.red),
+                                    label: Text(
+                                      'Hapus',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      side: BorderSide(
+                                          color: Colors.red, width: 2),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        }
+      },
     );
   }
 
@@ -168,8 +273,11 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
             ],
           ),
         ),
-        FutureBuilder<List<Restaurant>>(
-          future: futureRestaurants,
+        FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            RestaurantService().fetchRestaurants(),
+            BookmarkService().fetchBookmarks("4")
+          ]),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -178,20 +286,35 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(child: Text('No restaurants found'));
             } else {
-              final data = snapshot.data!;
-              final filteredData = data
+              final restaurants = snapshot.data![0] as List<Restaurant>;
+              final bookmarks = snapshot.data![1] as List<Bookmark>;
+              final bookmarkedWarungmakanIds =
+                  bookmarks.map((bookmark) => bookmark.warungmakanId).toSet();
+
+              final filteredData = restaurants
                   .where((resto) =>
                       selectedLocation == null ||
                       resto.location == selectedLocation)
                   .where((resto) =>
                       selectedType == null || resto.type == selectedType)
                   .toList();
+
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: filteredData.length,
                 itemBuilder: (BuildContext context, int index) {
                   final restaurant = filteredData[index];
+                  final isBookmarked = bookmarkedWarungmakanIds
+                      .contains(restaurant.id.toString());
+                  final bookmarkId = isBookmarked
+                      ? bookmarks
+                          .firstWhere((bookmark) =>
+                              bookmark.warungmakanId ==
+                              restaurant.id.toString())
+                          .id
+                      : null;
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -202,6 +325,8 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
                             image: restaurant.urlPhoto,
                             location: restaurant.location,
                             type: restaurant.type,
+                            userId: '1',
+                            warungmakanId: restaurant.id.toString(),
                           ),
                         ),
                       );
@@ -263,19 +388,33 @@ class _DashBoardRestaurantState extends State<DashBoardRestaurant> {
                                       ),
                                     ),
                                     InkWell(
-                                      onTap: () {
-                                        // Handle bookmark action
+                                      onTap: () async {
+                                        if (isBookmarked) {
+                                          await BookmarkService()
+                                              .deleteBookmark(
+                                                  bookmarkId.toString());
+                                        } else {
+                                          await BookmarkService().storeBookmark(
+                                              "4", restaurant.id.toString());
+                                        }
+                                        setState(() {});
                                       },
-                                      child: const Row(
+                                      child: Row(
                                         children: [
-                                          Icon(Icons.bookmark,
-                                              color: Colors.grey),
-                                          SizedBox(width: 4),
+                                          Icon(
+                                            Icons.bookmark,
+                                            color: isBookmarked
+                                                ? Colors.indigo
+                                                : Colors.grey,
+                                          ),
+                                          const SizedBox(width: 4),
                                           Text(
                                             "Bookmark",
                                             style: TextStyle(
                                               fontSize: 16.0,
-                                              color: Colors.grey,
+                                              color: isBookmarked
+                                                  ? Colors.indigo
+                                                  : Colors.grey,
                                             ),
                                           ),
                                         ],
